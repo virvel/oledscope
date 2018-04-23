@@ -1,0 +1,106 @@
+<objdefs appVersion="1.0.12">
+   <obj.normal id="oledscope" uuid="">
+      <sDescription>Draws scope onto 2.7&quot; 128x64 OLED display via SPI</sDescription>
+      <author>Björn Eriksson</author>
+      <license>GPL</license>
+      <inlets>
+         <frac32buffer name="i1"/>
+      </inlets>
+      <outlets/>
+      <displays/>
+      <params/>
+      <attribs/>
+      <depends>
+         <depend>SD1</depend>
+         <depend>SPID1</depend>
+      </depends>
+      <code.declaration><![CDATA[enum SSD1325 {
+	LCDWIDTH = 128,
+	LCDHEIGHT = 64,
+	
+	DISPLAYON = 0xAE,
+	DISPLAYOFF = 0xAF,
+	SETCONSTRAST = 0x81, // 2 byte cmd
+	SETDISPLAYSTARTLINE = 0xA1,
+	SETDISPLAYSHIFT = 0xA2,
+	SETNORMALDISPLAY = 0xA4,
+	SETDISPLAYON = 0xA5,
+	SETDISPLAYOFF = 0xA6,
+	SETDISPLAYINVERTED = 0xA7,
+	SETMULTIPLEXRATIO = 0xA8,
+	
+	SETCOLUMN = 0x15,
+	SETROW = 0x75,
+	SETCONTRAST = 0x81
+};
+
+uint8_t *txbuf;
+
+
+void cmd(uint8_t c)
+{
+
+	txbuf[0] = 0;
+	txbuf[1] = c;
+	spiSend(&SPID1, 8, txbuf);
+
+}
+
+void fill()
+{
+
+
+	for (int i = 0; i < LCDWIDTH; ++i)
+	{
+
+	txbuf[i] = 0xFF;
+		
+	}
+
+}
+
+void loop()
+{
+}
+
+void init()
+{
+	cmd(DISPLAYOFF);
+
+	cmd(SETCOLUMN); cmd(0); cmd(0x3F);
+	cmd(SETROW); cmd(0); cmd(0x3F);
+	cmd(SETCONTRAST); cmd(0xFF); cmd(0x80);
+	
+	cmd(DISPLAYON);
+	fill();
+}
+
+void setup()
+{
+	init();
+}
+
+msg_t ThreadX2()
+{
+	setup();
+	while (!chThdShouldTerminate())
+	{
+		loop();
+		chThdSleepMilliseconds(1);
+	}
+	chThdExit((msg_t)0);
+}
+
+static msg_t ThreadX(void *arg) {
+ ((attr_parent *)arg)->ThreadX2();
+}
+
+WORKING_AREA(waThreadX, 1024);
+Thread *Thd;]]></code.declaration>
+      <code.init><![CDATA[Thd = chThdCreateStatic(waThreadX, sizeof(waThreadX), NORMALPRIO, ThreadX, (void *)this);
+spiSelect(&SPID1);]]></code.init>
+      <code.dispose><![CDATA[spiStop(&SPID1);
+chThdTerminate(Thd);
+chThdWait(Thd);]]></code.dispose>
+   </obj.normal>
+</objdefs>
